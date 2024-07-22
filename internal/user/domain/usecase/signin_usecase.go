@@ -10,23 +10,28 @@ import (
 	Errors "github.com/Adhiana46/aegis-asesmen/errors"
 	DTO "github.com/Adhiana46/aegis-asesmen/internal/user/domain/dto"
 	Entity "github.com/Adhiana46/aegis-asesmen/internal/user/domain/entity"
+	Event "github.com/Adhiana46/aegis-asesmen/internal/user/domain/event"
 	Repository "github.com/Adhiana46/aegis-asesmen/internal/user/domain/repository"
+	PkgKafkaPublisher "github.com/Adhiana46/aegis-asesmen/pkg/kafka/publisher"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
 )
 
 type UserSigninUsecase struct {
-	config   *Config.Config
-	userRepo Repository.IUserRepository
+	config    *Config.Config
+	publisher *PkgKafkaPublisher.Publisher
+	userRepo  Repository.IUserRepository
 }
 
 func NewUserSigninUsecase(
 	config *Config.Config,
+	publisher *PkgKafkaPublisher.Publisher,
 	userRepo Repository.IUserRepository,
 ) *UserSigninUsecase {
 	return &UserSigninUsecase{
-		config:   config,
-		userRepo: userRepo,
+		config:    config,
+		publisher: publisher,
+		userRepo:  userRepo,
 	}
 }
 
@@ -63,7 +68,11 @@ func (u *UserSigninUsecase) Do(ctx context.Context, input *DTO.UserSigninParam) 
 		AccessToken: accessToken,
 	}
 
-	// TODO: Publish Event
+	//  Publish Event
+	evt := Event.NewUserSigninEvent(user)
+	if err := u.publisher.Publish(evt); err != nil {
+		return nil, errors.Wrap(err, path)
+	}
 
 	// SUCCESS
 	return &output, nil

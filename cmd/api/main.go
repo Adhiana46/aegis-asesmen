@@ -26,7 +26,6 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/golang-migrate/migrate"
 	"github.com/pkg/errors"
-	"github.com/xdg-go/scram"
 )
 
 func main() {
@@ -48,15 +47,15 @@ func main() {
 	}()
 
 	// Init Publisher
-	// publisher, err := initPublisher(cfg)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer func() {
-	// 	if err := publisher.Close(); err != nil {
-	// 		slog.Error("error during cleanup publisher", slog.String("error", err.Error()))
-	// 	}
-	// }()
+	publisher, err := initPublisher(cfg)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := publisher.Close(); err != nil {
+			slog.Error("error during cleanup publisher", slog.String("error", err.Error()))
+		}
+	}()
 
 	// Data Source
 	var (
@@ -72,7 +71,7 @@ func main() {
 
 	// Init Usecase
 	var (
-		userSigninUsecase          = UserUsecase.NewUserSigninUsecase(cfg, userRepository)
+		userSigninUsecase          = UserUsecase.NewUserSigninUsecase(cfg, publisher, userRepository)
 		getListOrganizationUsecase = OrganizationUsecase.NewGetListOrganizationUsecase(cfg, organizationRepository)
 		getOrganizationByIdUsecase = OrganizationUsecase.NewGetOrganizationByIdUsecase(cfg, organizationRepository)
 		createOrganizationUsecase  = OrganizationUsecase.NewCreateOrganizationUsecase(cfg, organizationRepository)
@@ -160,24 +159,25 @@ func initPublisher(cfg *Config.Config) (*PkgKafkaPublisher.Publisher, error) {
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.Retry.Max = 5
 
-	// SASL_SSL Configuration
-	config.Net.SASL.Enable = true
-	config.Net.SASL.Handshake = true
-	config.Net.SASL.User = cfg.Kafka.Username
-	config.Net.SASL.Password = cfg.Kafka.Password
-	config.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
-	if cfg.Kafka.SASLMechanism == "SCRAM-SHA-512" {
-		config.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
-	}
-	config.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient {
-		var hashGenerator scram.HashGeneratorFcn = SHA256
-		if cfg.Kafka.SASLMechanism == "SCRAM-SHA-512" {
-			hashGenerator = SHA512
-		}
+	// TODO:
+	// // SASL_SSL Configuration
+	// config.Net.SASL.Enable = true
+	// config.Net.SASL.Handshake = true
+	// config.Net.SASL.User = cfg.Kafka.Username
+	// config.Net.SASL.Password = cfg.Kafka.Password
+	// config.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
+	// if cfg.Kafka.SASLMechanism == "SCRAM-SHA-512" {
+	// 	config.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
+	// }
+	// config.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient {
+	// 	var hashGenerator scram.HashGeneratorFcn = SHA256
+	// 	if cfg.Kafka.SASLMechanism == "SCRAM-SHA-512" {
+	// 		hashGenerator = SHA512
+	// 	}
 
-		return &XDGSCRAMClient{HashGeneratorFcn: hashGenerator}
-	}
-	config.Net.TLS.Enable = true
+	// 	return &XDGSCRAMClient{HashGeneratorFcn: hashGenerator}
+	// }
+	// config.Net.TLS.Enable = true
 
 	publisher, err := PkgKafkaPublisher.New(
 		PkgKafkaPublisher.WithConfig(config),
