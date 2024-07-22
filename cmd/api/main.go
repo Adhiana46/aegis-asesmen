@@ -18,6 +18,11 @@ import (
 	UserRepository "github.com/Adhiana46/aegis-asesmen/internal/user/domain/repository"
 	UserUsecase "github.com/Adhiana46/aegis-asesmen/internal/user/domain/usecase"
 
+	OrganizationDataSourcePostgres "github.com/Adhiana46/aegis-asesmen/internal/organization/data/source/postgres"
+	OrganizationHttpHandler "github.com/Adhiana46/aegis-asesmen/internal/organization/delivery/http_handler"
+	OrganizationRepository "github.com/Adhiana46/aegis-asesmen/internal/organization/domain/repository"
+	OrganizationUsecase "github.com/Adhiana46/aegis-asesmen/internal/organization/domain/usecase"
+
 	"github.com/IBM/sarama"
 	"github.com/golang-migrate/migrate"
 	"github.com/pkg/errors"
@@ -55,22 +60,37 @@ func main() {
 
 	// Data Source
 	var (
-		userPersistent = UserDataSourcePostgres.NewUserPersistentPostgres(dbConn)
+		userPersistent         = UserDataSourcePostgres.NewUserPersistentPostgres(dbConn)
+		organizationPersistent = OrganizationDataSourcePostgres.NewOrganizationPersistentPostgres(dbConn)
 	)
 
 	// Repositories
 	var (
-		userRepository = UserRepository.NewUserRepository(userPersistent)
+		userRepository         = UserRepository.NewUserRepository(userPersistent)
+		organizationRepository = OrganizationRepository.NewOrganizationRepository(organizationPersistent)
 	)
 
 	// Init Usecase
 	var (
-		userSigninUsecase = UserUsecase.NewUserSigninUsecase(cfg, userRepository)
+		userSigninUsecase          = UserUsecase.NewUserSigninUsecase(cfg, userRepository)
+		getListOrganizationUsecase = OrganizationUsecase.NewGetListOrganizationUsecase(cfg, organizationRepository)
+		getOrganizationByIdUsecase = OrganizationUsecase.NewGetOrganizationByIdUsecase(cfg, organizationRepository)
+		createOrganizationUsecase  = OrganizationUsecase.NewCreateOrganizationUsecase(cfg, organizationRepository)
+		updateOrganizationUsecase  = OrganizationUsecase.NewUpdateOrganizationUsecase(cfg, organizationRepository)
+		deleteOrganizationUsecase  = OrganizationUsecase.NewDeleteOrganizationUsecase(cfg, organizationRepository)
 	)
 
 	// Init Handlers
 	var (
-		userHttpHandler = UserHttpHandler.NewAuthHandler(cfg, userSigninUsecase)
+		userHttpHandler         = UserHttpHandler.NewAuthHandler(cfg, userSigninUsecase)
+		organizationHttpHandler = OrganizationHttpHandler.NewOrganizationHandler(
+			cfg,
+			getListOrganizationUsecase,
+			getOrganizationByIdUsecase,
+			createOrganizationUsecase,
+			updateOrganizationUsecase,
+			deleteOrganizationUsecase,
+		)
 	)
 
 	// Http Server
@@ -88,6 +108,7 @@ func main() {
 		httpServer,
 		// Handlers
 		userHttpHandler,
+		organizationHttpHandler,
 	)
 
 	// Start HTTP Server

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	Config "github.com/Adhiana46/aegis-asesmen/config"
+	OrganizationHandler "github.com/Adhiana46/aegis-asesmen/internal/organization/delivery/http_handler"
 	UserHandler "github.com/Adhiana46/aegis-asesmen/internal/user/delivery/http_handler"
 	PkgHttpServer "github.com/Adhiana46/aegis-asesmen/pkg/server/http"
 	"github.com/labstack/echo/v4"
@@ -14,6 +15,7 @@ func setupHttpRoutes(
 	srv *PkgHttpServer.Server,
 	// Handlers
 	userHandler *UserHandler.UserHandler,
+	organizationHandler *OrganizationHandler.OrganizationHandler,
 ) {
 	// Set Routes
 	err := srv.SetHandlers(func(e *echo.Echo) error {
@@ -23,6 +25,13 @@ func setupHttpRoutes(
 
 		authRouter := e.Group("/api/auth")
 		authRouter.POST("/signin", userHandler.UserSignIn)
+
+		organizationRouter := e.Group("/api/organization")
+		organizationRouter.GET("/", organizationHandler.GetListOrganization)
+		organizationRouter.GET("/:id", organizationHandler.GetOrganizationById)
+		organizationRouter.POST("/", organizationHandler.CreateOrganization)
+		organizationRouter.PUT("/:id", organizationHandler.UpdateOrganization)
+		organizationRouter.DELETE("/:id", organizationHandler.DeleteOrganization)
 
 		return nil
 	})
