@@ -7,9 +7,11 @@ import (
 	"time"
 
 	Config "github.com/Adhiana46/aegis-asesmen/config"
+	Constants "github.com/Adhiana46/aegis-asesmen/constants"
 	Errors "github.com/Adhiana46/aegis-asesmen/errors"
 	DTO "github.com/Adhiana46/aegis-asesmen/internal/organization/domain/dto"
 	Repository "github.com/Adhiana46/aegis-asesmen/internal/organization/domain/repository"
+	UserEntity "github.com/Adhiana46/aegis-asesmen/internal/user/domain/entity"
 	"github.com/pkg/errors"
 )
 
@@ -38,6 +40,11 @@ func (u *UpdateOrganizationUsecase) path() string {
 func (u *UpdateOrganizationUsecase) Do(ctx context.Context, input *DTO.UpdateOrganizationParam) error {
 	path := u.path()
 
+	user, ok := ctx.Value("user").(*UserEntity.UserClaims)
+	if !ok {
+		return Errors.NewErrorInvalidCredentials()
+	}
+
 	obj, err := u.repo.GetByID(ctx, input.Id)
 	if err != nil {
 		return errors.Wrap(err, path)
@@ -53,6 +60,11 @@ func (u *UpdateOrganizationUsecase) Do(ctx context.Context, input *DTO.UpdateOrg
 	}
 	if objByName != nil && objByName.Id != input.Id {
 		return Errors.NewErrorDataAlreadyExists()
+	}
+
+	// Check Permission
+	if user.Role != Constants.ROLE_SUPERADMIN && obj.CreatedBy != user.Id {
+		return Errors.NewErrorInsufficientAccess()
 	}
 
 	// Update Values

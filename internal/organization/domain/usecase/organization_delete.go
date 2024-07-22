@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	Config "github.com/Adhiana46/aegis-asesmen/config"
+	Constants "github.com/Adhiana46/aegis-asesmen/constants"
 	Errors "github.com/Adhiana46/aegis-asesmen/errors"
 	Repository "github.com/Adhiana46/aegis-asesmen/internal/organization/domain/repository"
+	UserEntity "github.com/Adhiana46/aegis-asesmen/internal/user/domain/entity"
 	"github.com/pkg/errors"
 )
 
@@ -36,12 +38,22 @@ func (u *DeleteOrganizationUsecase) path() string {
 func (u *DeleteOrganizationUsecase) Do(ctx context.Context, id string) error {
 	path := u.path()
 
+	user, ok := ctx.Value("user").(*UserEntity.UserClaims)
+	if !ok {
+		return Errors.NewErrorInvalidCredentials()
+	}
+
 	obj, err := u.repo.GetByID(ctx, id)
 	if err != nil {
 		return errors.Wrap(err, path)
 	}
 	if obj == nil {
 		return Errors.NewErrorDataNotFound()
+	}
+
+	// Check Permission
+	if user.Role != Constants.ROLE_SUPERADMIN && obj.CreatedBy != user.Id {
+		return Errors.NewErrorInsufficientAccess()
 	}
 
 	if err := u.repo.Destroy(ctx, obj); err != nil {

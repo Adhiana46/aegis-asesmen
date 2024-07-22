@@ -11,6 +11,7 @@ import (
 	DTO "github.com/Adhiana46/aegis-asesmen/internal/organization/domain/dto"
 	Entity "github.com/Adhiana46/aegis-asesmen/internal/organization/domain/entity"
 	Repository "github.com/Adhiana46/aegis-asesmen/internal/organization/domain/repository"
+	UserEntity "github.com/Adhiana46/aegis-asesmen/internal/user/domain/entity"
 	"github.com/oklog/ulid/v2"
 	"github.com/pkg/errors"
 )
@@ -40,6 +41,11 @@ func (u *CreateOrganizationUsecase) path() string {
 func (u *CreateOrganizationUsecase) Do(ctx context.Context, input *DTO.CreateOrganizationParam) error {
 	path := u.path()
 
+	user, ok := ctx.Value("user").(*UserEntity.UserClaims)
+	if !ok {
+		return Errors.NewErrorInvalidCredentials()
+	}
+
 	existingObj, err := u.repo.GetByName(ctx, input.Name)
 	if err != nil {
 		return errors.Wrap(err, path)
@@ -52,9 +58,9 @@ func (u *CreateOrganizationUsecase) Do(ctx context.Context, input *DTO.CreateOrg
 		Id:        ulid.Make().String(),
 		Name:      input.Name,
 		CreatedAt: time.Now(),
-		CreatedBy: "", // TODO: user_id
+		CreatedBy: user.Id,
 		UpdatedAt: time.Now(),
-		UpdatedBy: "", // TODO: user_id
+		UpdatedBy: user.Id,
 	}
 
 	// save to repo
